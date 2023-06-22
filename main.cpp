@@ -24,7 +24,7 @@ namespace fs = std::filesystem;
 #define CRC_MASK 0xFFFFFFFFL
 #define CRC32_POLYNOMIAL 0xEDB88320L //CRC-32 Adler
 
-#define FILENAME_MAX 128
+#define FILENAME_MAX_LENGTH 128
 #define MAX_FILE_LIST 100 //number of files that can be processed at a time
 
 struct Header {
@@ -32,13 +32,13 @@ struct Header {
 	std::uint32_t compressedSize{};
 	std::uint32_t originalCRC{};
 	std::uint32_t headerCRC{};
-	char filename[FILENAME_MAX];
+	char filename[FILENAME_MAX_LENGTH];
 	char compressionMethod{};
 };
 
 //global variables
-char tempFileName[FILENAME_MAX];
-char carFileName[FILENAME_MAX];
+char tempFileName[FILENAME_MAX_LENGTH];
+char carFileName[FILENAME_MAX_LENGTH];
 std::vector<std::string> fileList(MAX_FILE_LIST);
 std::fstream inputCarFile;
 std::fstream outputCarFile;
@@ -135,8 +135,8 @@ void testCRCTable() {
 void openArchiveFiles(char* name, char command) {
 	char* s;
 	int i;
-	strncpy(carFileName, name, FILENAME_MAX - 1);
-	carFileName[FILENAME_MAX - 1] = '\0';
+	strncpy(carFileName, name, FILENAME_MAX_LENGTH - 1);
+	carFileName[FILENAME_MAX_LENGTH - 1] = '\0';
 	inputCarFile = std::fstream{ carFileName, std::ios_base::in | std::ios_base::binary };
 	if (!inputCarFile.is_open()) {
 #if defined (_WIN32)
@@ -147,7 +147,7 @@ void openArchiveFiles(char* name, char command) {
 		if (s == nullptr)
 			s = carFileName;
 		if (strrchr(s, '.') == nullptr) {
-			if (strlen(carFileName) < (FILENAME_MAX - 4)) {
+			if (strlen(carFileName) < (FILENAME_MAX_LENGTH - 4)) {
 				strcat(carFileName, ".qa");
 				inputCarFile = std::fstream{ carFileName, std::ios_base::in | std::ios_base::binary };
 			}
@@ -175,37 +175,50 @@ void openArchiveFiles(char* name, char command) {
 }
 
 
-//void massageMSDOSFileName(int count, char* name) {
-//
-//}
-//
-//
-//int expandAndMassageMSDOSFileNames(int count, char* wildName) {
-//
-//}
-//
-//
-//
-void buildFileList(int argc, char* argv[], int command) {
+void normalizeFileName(int count, std::string fname) {
+	std::transform(std::begin(fname), std::end(fname), std::begin(fname), ::tolower);
+	fileList[count] = fname;
+}
+
+
+int expandAndNormalizeFileNames(int count, std::string& fname) {
+	if (fname.starts_with("*")) {
+		std::string extension = fname.substr(1, std::size(fname) - 1);
+		auto filter = [&extension](fs::path const& path) {
+			return path.extension() == extension;
+		};
+		for (auto& entry : fs::directory_iterator(fs::current_path())) {
+			if (fs::is_regular_file(entry) && filter(entry))
+				normalizeFileName(count++, fs::path(entry).string());
+		}
+	}
+	else
+		normalizeFileName(count++, fname);
+	return count;
+}
+
+
+int buildFileList(int argc, char* argv[], int command) {
 	int i, count{ 0 };
 	if (argc == 0)
-		fileList[count++] = "*";
+		fileList[count++] = {"*"};
 	else {
 		for (i = 0; i < argc; ++i) {
 #if defined (_WIN32)
+			std::string fname = argv[i];
 			if (command == 'A')
-				count = expandAndMassageMSDOSFileNames(count, argv[1]);
+				count = expandAndNormalizeFileNames(count, fname);
 			else
-				massageMSDOSFileName(count++, argv[1]);
+				normalizeFileName(count++, fname);
 #endif
 #if defined (__linux__)
-			fileList[count] = malloc(strlen(argv[i]) + );
-			strcpt(fileList[count++], argv[i]);
+			fileList[count++] argv[i];
 #endif
 			if (count > 99)
 				fatalError("Too many filenames");
 		}
 	}
+	return count;
 }
 
 int main(int argc, char* argv[]) {
@@ -216,6 +229,10 @@ int main(int argc, char* argv[]) {
 	command = parseArguments(argc, argv);
 	printf("\n");
 	openArchiveFiles(argv[2], command);
-	buildFileList(argc - 3, argv + 3, command);
+	count = buildFileList(argc - 3, argv + 3, command);
+	for (auto i{ 0 }; i < count; ++i) {
+		std::cout << fileList[i] << "\n";
+	}
+		
 	return 0;
 }
