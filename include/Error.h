@@ -4,7 +4,7 @@
 
 void usage() {
 	printf("QUANTA 1.0: quanta compressed archive manager\n");
-	printf("USAGE: quanta -[command] carfile [file...]");
+	printf("USAGE: quanta -[command] [archive file] [files...]");
 	printf("\nx: [extract file from archive]");
 	printf("\nr: [replace files in archive]");
 	printf("\np: [print files in archive to screen]");
@@ -12,6 +12,7 @@ void usage() {
 	printf("\nl: [list files in archive]");
 	printf("\na: [add file to archive(replace if present)]");
 	printf("\nd: [delete file from archive]\n");
+	exit(0);
 }
 
 void fatalError(std::string const& errorMessage) {
