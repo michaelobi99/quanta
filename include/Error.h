@@ -1,10 +1,10 @@
 #pragma once
 #include <string>
-#include <string_view>
+#include <iomanip>
 
 void usage() {
-	printf("QUANTA 1.0: quanta compressed archive manager\n");
-	printf("USAGE: quanta -[command] [archive file] [files...]");
+	printf("\nQUANTA 1.0: quanta compressed archive manager\n");
+	printf("USAGE: quanta -[command] [archive file] [files...]\n");
 	printf("\nx: [extract file from archive]");
 	printf("\nr: [replace files in archive]");
 	printf("\np: [print files in archive to screen]");

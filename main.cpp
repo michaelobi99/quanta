@@ -14,6 +14,7 @@
 #include <format>
 #include <fstream>
 #include <filesystem>
+#include <algorithm>
 #include "Error.h"
 //#define NDEBUG 
 #include <cassert>
@@ -190,6 +191,8 @@ int expandAndNormalizeFileNames(int count, std::string& fname) {
 		for (auto& entry : fs::directory_iterator(fs::current_path())) {
 			if (fs::is_regular_file(entry) && filter(entry))
 				normalizeFileName(count++, fs::path(entry).string());
+			if (count > 99)
+				fatalError("Too many filenames");
 		}
 	}
 	else
@@ -221,6 +224,58 @@ int buildFileList(int argc, char* argv[], int command) {
 	return count;
 }
 
+
+void insert(std::fstream& infile, const char* str) {
+
+}
+
+
+
+void addFileListToArchive(int count) {
+	bool skip{ false };
+	int i{}, j{};
+	std::string::size_type pos;
+	std::fstream inputFile;
+	for (i = 0; i < count; ++i) {
+		inputFile.open(fileList[i], std::ios_base::in | std::ios_base::binary);
+		if (!inputFile.is_open())
+			fatalError("quanta could not open " + fileList[i]);
+#if defined (_WIN32)
+		pos = fileList[i].rfind("\\");
+		if (pos == std::string::npos)
+			pos = fileList[i].rfind(":");
+#endif
+#if defined (__linux__)
+		pos = fileList[i].rfind("/");
+#endif
+		std::string s = (pos == std::string::npos) ? fileList[i] : fileList[i].substr(++pos, fileList[i].size() - pos);
+		
+		for (j = 0; j < i; ++j) {
+			if (s == fileList[j]) {
+				printf("Duplicate file detected: %s", s.c_str());
+				skip = true;
+				break;
+			}
+		}
+		fileList[i] = s;
+		if (!skip) {
+			std::copy(std::begin(fileList[i]), std::end(fileList[i]), header.filename);
+			insert(inputFile, "Adding");
+		}
+		else
+			inputFile.close();
+	}
+}
+
+
+void printListTitles() {
+	std::cout << std::left << std::setw(40) << "Filename" << std::left << std::setw(15) << "Original"
+		<< std::left << std::setw(15) << "compressed" << std::left << std::setw(10) << "ratio"
+		<< std::left << std::setw(10) << "CRC-32" << std::left << std::setw(10) << "Method\n";
+}
+
+
+
 int main(int argc, char* argv[]) {
 	testCRCTable();
 	char command{};
@@ -230,9 +285,14 @@ int main(int argc, char* argv[]) {
 	printf("\n");
 	openArchiveFiles(argv[2], command);
 	count = buildFileList(argc - 3, argv + 3, command);
-	for (auto i{ 0 }; i < count; ++i) {
+	/*for (auto i{ 0 }; i < count; ++i) {
 		std::cout << fileList[i] << "\n";
-	}
-		
+	}*/
+	if (command == 'A')
+		addFileListToArchive(count);
+	else
+		count = 0;
+	//if (command == 'L')
+	printListTitles();
 	return 0;
 }
