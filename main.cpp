@@ -29,11 +29,11 @@ namespace fs = std::filesystem;
 #define MAX_FILE_LIST 100 //number of files that can be processed at a time
 
 struct Header {
+	char filename[FILENAME_MAX_LENGTH];
 	std::uint32_t originalSize{};
 	std::uint32_t compressedSize{};
 	std::uint32_t originalCRC{};
 	std::uint32_t headerCRC{};
-	char filename[FILENAME_MAX_LENGTH];
 	char compressionMethod{};
 };
 
@@ -224,9 +224,60 @@ int buildFileList(int argc, char* argv[], int command) {
 	return count;
 }
 
+std::uint32_t calculateBlockCRC32(unsigned count, std::uint32_t crc, void* buffer) {
+	unsigned char* ptr = (unsigned char*)buffer;
+	std::uint32_t temp1{}, temp2{};
+	unsigned i{ 0 };
+	while (count-- != 0) {
+		temp1 = (crc >> 8) & 0x00ffffff;
+		temp2 = ccitt32Table[(int)*ptr++ & 0xff];
+		crc = temp1 ^ temp2;
+	}
+	return crc;
+}
+
+void packUnsignedData(int numberOfBytes, std::uint32_t number, unsigned char* buffer) {
+	while (numberOfBytes-- > 0) {
+		*buffer++ = (unsigned char)number & 0xff;
+		number >>= 8;
+	}
+}
+
+void writeFileHeader() {
+	unsigned char headerData[17];
+	unsigned i{};
+	for (i = 0; ++i; ) {
+		outputCarFile.put(header.filename[i]);
+		if (header.filename[i] == '\0')
+			break;
+	}
+	header.originalCRC = calculateBlockCRC32(i, CRC_MASK, header.filename);
+	packUnsignedData(1, (std::uint32_t)header.compressionMethod, headerData + 0);
+	packUnsignedData(4, header.originalSize, headerData + 1);
+	packUnsignedData(4, header.compressedSize, headerData + 5);
+	packUnsignedData(4, header.originalCRC, headerData + 9);
+	header.headerCRC = calculateBlockCRC32(13, header.headerCRC, headerData);
+	header.headerCRC ^= CRC_MASK;
+	packUnsignedData(4, header.headerCRC, headerData + 13);
+	outputCarFile.write(reinterpret_cast<char*>(headerData), 17);
+}
+
+
+
 
 void insert(std::fstream& infile, const char* str) {
+	long savedPositonOfHeader{}, savedPositionOfFile{};
+	printf("\nAdding %s to archive\n", header.filename);
+	savedPositonOfHeader = outputCarFile.tellg();
+	header.compressionMethod = 2;
+	writeFileHeader();
+	savedPositionOfFile = outputCarFile.tellg();
+	infile.seekg(0, std::ios_base::end);
+	header.originalSize = infile.tellg();
+	infile.seekg(0, std::ios_base::beg);
+	if (!LZSSCompress(infile)) {
 
+	}
 }
 
 
@@ -292,7 +343,7 @@ int main(int argc, char* argv[]) {
 		addFileListToArchive(count);
 	else
 		count = 0;
-	//if (command == 'L')
-	printListTitles();
+	if (command == 'L')
+		printListTitles();
 	return 0;
 }
