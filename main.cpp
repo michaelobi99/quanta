@@ -262,9 +262,6 @@ void writeFileHeader() {
 	outputCarFile.write(reinterpret_cast<char*>(headerData), 17);
 }
 
-
-
-
 void insert(std::fstream& infile, const char* str) {
 	long savedPositonOfHeader{}, savedPositionOfFile{};
 	printf("\nAdding %s to archive\n", header.filename);
@@ -279,7 +276,6 @@ void insert(std::fstream& infile, const char* str) {
 
 	}
 }
-
 
 
 void addFileListToArchive(int count) {

@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include <bitset>
+#include "Error.h"
 
 namespace stl {
 	struct BitFile {
@@ -41,7 +42,7 @@ namespace stl {
 	void closeOutputBitFile(std::unique_ptr<BitFile>& bitFile) {
 		if (bitFile->mask != 0x80) {
 			if (!bitFile->file.put(bitFile->rack)) {
-				throw FileError("ERROR: An error occurred in closeOutputBitFile\n");
+				fatalError("An error occurred in closeOutputBitFile\n");
 			}
 		}
 		bitFile->file.close();
@@ -58,7 +59,7 @@ namespace stl {
 		if (bitFile->mask == 0) {
 			++counter;
 			if (!bitFile->file.put(bitFile->rack)) {
-				throw FileError("ERROR: An error occurred in outputBits\n");
+				fatalError("ERROR: An error occurred in outputBits\n");
 			}
 			bitFile->rack = 0;
 			bitFile->mask = 0x80;
@@ -74,7 +75,7 @@ namespace stl {
 			bitFile->mask >>= 1;
 			if (bitFile->mask == 0) {
 				if (!bitFile->file.put(bitFile->rack)) {
-					throw FileError("ERROR: An error occurred in outputBits\n");
+					fatalError("An error occurred in outputBits\n");
 				}
 				bitFile->rack = 0;
 				bitFile->mask = 0x80;
@@ -103,7 +104,7 @@ namespace stl {
 			if (bitFile->mask == 0x80) {
 				bitFile->file.get(ch);
 				if (bitFile->file.eof())
-					throw FileError("An error occurred in inputBits\n");
+					fatalError("An error occurred in inputBits\n");
 				bitFile->rack = ch;
 			}
 			if (bitFile->rack & bitFile->mask)
